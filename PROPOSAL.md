@@ -1,188 +1,52 @@
-# AMB82-Mini + Google AI Edge Gallery Smart Giraffe
+ # 期末專題計畫構想書 (Proposal)
 
-## Project proposal
+> **使用晶片標註**：本計畫採用 **AMB82-mini** 作為機器人主控制器。
+> **企業評審意願**：本組**【願意 / 不願意】**參與瑞昱科技（Realtek）計畫評審。
 
-The recommended architecture is to make the **AMB82-Mini the giraffe's embodied hardware controller**, while **Google AI Edge Gallery on an Android device provides the higher-level agent/reasoning layer**. Rather than putting a full MCP implementation and a large language model on the microcontroller, the AMB82 exposes a small semantic JSON/HTTP API for perception and physical actions.
+---
 
-```text
-                   SMART GIRAFFE
- ┌────────────────────────────────────────────┐
- │                AMB82-Mini                  │
- │                                            │
- │ Camera ──> local vision ──> perception     │
- │ Mic ─────> audio/event detection           │
- │                                            │
- │              Giraffe Agent API             │
- │        HTTP/WebSocket JSON interface       │
- │                    │                       │
- │       ┌────────────┼────────────┐          │
- │       ▼            ▼            ▼          │
- │    Speaker       Servos        LEDs         │
- │   / playback   head / ears   expression     │
- └────────────────────┬───────────────────────┘
-                      │ Wi-Fi
-                      │
-              Android phone/tablet
- ┌────────────────────▼───────────────────────┐
- │          Google AI Edge Gallery            │
- │                                            │
- │        on-device model / agent             │
- │                 │                          │
- │         Giraffe Agent Skill                │
- │                 │                          │
- │        JS Skill / MCP ecosystem            │
- │                 │                          │
- │       ┌─────────┼─────────┐                │
- │       ▼         ▼         ▼                │
- │     look()    emotion()   move()            │
- │     status()  play()      etc.              │
- └────────────────────────────────────────────┘
-```
+## 1. 專案名稱
+**基於 AMB82-mini 與 Google Edge AI 的智能情緒感知陪伴寵物 (AI Empathy Plush Companion)**
 
-## Why use a small hardware API?
+## 2. 組員名單
+* **組員 1**：[請填寫姓名 / 學號 / 分工]
+* **組員 2**：[請填寫姓名 / 學號 / 分工]
+* **組員 3**：（若無可刪除）[請填寫姓名 / 學號 / 分工]
 
-MCP is most useful at the agent/tool integration layer. The AMB82 should remain responsible for deterministic embedded functions: camera inference, GPIO/PWM, audio playback, LEDs, sensor events, and motion safety. A compact HTTP/JSON API is easier to debug, uses less RAM/flash, and prevents the language model from directly commanding low-level PWM or GPIO values.
+---
 
-The agent should therefore request semantic actions such as:
+## 3. 計畫構想與創新亮點
 
-```text
-giraffe.look()
-giraffe.nod()
-giraffe.shake_head()
-giraffe.wave()
-giraffe.set_emotion("happy")
-giraffe.play_sound("hello")
-giraffe.status()
-```
+### 3.1 核心構想
+結合 AMB82-mini 邊緣運算晶片與 Google Edge AI (Gemma4-E2B) 模型，打造具備「視、聽、觸」多模態感知的無螢幕（Screenless）智能絨毛玩具。專為兒童與長者設計，能透過表情與語音識別使用者情緒，並給予相應的動作與語音陪伴回應。
 
-Do **not** expose low-level commands such as arbitrary servo angles, raw PWM duty cycles, or unrestricted GPIO writes to the agent.
+### 3.2 創新與加減功能設計
+* **精簡（去除多餘功能）**：
+  * 移除傳統雙輪移動輪組，專注於絨毛玩具的頭部/肢體微動作控制（降低馬達噪音與耗電）。
+* **創新加強功能**：
+  * **情緒撫慰機制**：結合 IMU 姿態感測，當偵測到「抱持/撫摸」姿態時，觸發溫暖語音與心跳震動反饋。
+  * **離線與連線雙模切換**：在無網路環境下，透過 AMB82-mini 播放預載 SD 卡語音；連線時則透過 Gemma4-E2B 進行深度的智能情緒對話。
 
-## Two-level AI design
+---
 
-```text
-       Fast / reactive                    Cognitive
-       AMB82-Mini                         Android device
+## 4. AMB82-mini 晶片功能整合
 
-       local object detection             reasoning
-       gesture/event detection            conversation
-       camera capture                     agent skills
-       LEDs / audio / servos              MCP integrations
-       safety interlocks                  planning
-```
+1. **影像感知 (Image Capture)**：利用 AMB82-mini 攝影機模組進行人臉捕捉與視覺情緒分析。
+2. **語音互動 (Audio & Sound)**：
+   * 麥克風錄製語音串流。
+   * 喇叭播放回應（支援 SD 卡預載 MP3 與 TTS 語音檔播放）。
+3. **姿態感知與互動 (IMU & Motor Driver)**：
+   * 利用 6 軸 IMU 偵測玩具被抱起、搖晃或平放等動態。
+   * 驅動微型馬達實現轉頭、搖耳等擬真動物肢體動作。
+4. **距離感知 (IR Distance Sensor)**：辨識使用者靠近或觸碰。
 
-The AMB82 can turn continuous sensor streams into compact events. For example:
+---
 
-```json
-{
-  "event": "object_detected",
-  "objects": [
-    {"class": "person", "confidence": 0.96},
-    {"class": "book", "confidence": 0.88}
-  ]
-}
-```
+## 5. 互動模式比較分析 (AI Plush Pet 視角)
 
-This event-driven approach avoids continuously sending camera frames to the phone.
-
-## Recommended first six tools
-
-| Tool | AMB82 role | Agent purpose |
-|---|---|---|
-| `look()` | Camera + local detector | Understand surroundings |
-| `nod()` | Servo animation | Positive physical response |
-| `shake()` | Servo animation | Negative physical response |
-| `emotion()` | LED + bounded motion | Express state |
-| `play()` | microSD/audio playback | Sounds or prerecorded speech |
-| `status()` | Device telemetry | Check device state |
-
-## Example interaction
-
-```text
-User: "What am I holding?"
-
-Agent -> look()
-AMB82 -> {"objects":[{"label":"book","confidence":0.88}]}
-Agent -> formulates an answer
-Agent -> emotion("happy")
-Agent -> nod()
-Phone/TTS or toy audio -> "It looks like a book."
-```
-
-## Firmware/API design
-
-The reference firmware in `GiraffeAgent.ino` exposes endpoints such as:
-
-```text
-GET /status
-GET /look
-GET /nod
-GET /shake
-GET /wave
-GET /emotion/happy
-GET /emotion/curious
-GET /emotion/thinking
-GET /emotion/sleepy
-GET /play/hello
-```
-
-The supplied implementation intentionally contains adapter functions for camera inference, servo control, LEDs, and audio. Replace those adapters with the APIs appropriate to the exact AMB82-Mini board package and peripherals used in the build.
-
-## AI Edge Gallery Skill
-
-The reference `SKILL.md` gives the model a deliberately small physical-action vocabulary. `scripts/index.html` acts as the bridge between the Skill and the AMB82 HTTP API.
-
-The bridge validates actions before sending them to the toy. This is an important design property: model output is never translated into unrestricted hardware access.
-
-## Version 2: events
-
-After command/control is stable, add an event channel, for example:
-
-```text
-ws://giraffe.local/events
-```
-
-Possible events:
-
-```json
-{"event":"person_detected"}
-{"event":"wave_detected"}
-{"event":"button_pressed"}
-{"event":"picked_up"}
-{"event":"object_detected","object":"book"}
-```
-
-This allows the physical toy to initiate interactions without constant polling.
-
-## Safety and privacy
-
-- Enforce servo travel, speed, and timeout limits in firmware, not in prompts.
-- Never expose arbitrary GPIO/PWM control to the language model.
-- Keep moving linkages, batteries, and rigid parts inaccessible through the plush exterior.
-- Use visible indicators for camera/microphone/network activity.
-- Avoid continuous audio/video upload; perform local event detection where practical.
-- Do not store images/audio by default.
-- Provide a physical power switch and preferably hardware camera/microphone disable controls.
-- Validate power supply current and peripheral voltage compatibility before assembly.
-- Treat a modified plush as an engineering prototype unless it has undergone applicable toy/product safety testing.
-
-## Suggested implementation order
-
-1. Bring up Wi-Fi and `/status`.
-2. Implement bounded LED expressions.
-3. Implement one servo and `/nod` with hard travel limits.
-4. Add camera capture/local detection and `/look`.
-5. Add microSD/audio playback and `/play`.
-6. Install the AI Edge Gallery Skill and test the JavaScript bridge.
-7. Add event-driven perception only after command/control is reliable.
-8. Add richer STT/TTS/MCP integrations at the Android agent layer.
-
-## Repository layout
-
-```text
-giraffe-agent/
-├── PROPOSAL.md
-├── GiraffeAgent.ino
-├── SKILL.md
-└── scripts/
-    └── index.html
-```
+| 比較維度 | 模式 A：Edge AI App 介面轉接 | 模式 B：直接語音對話 (Direct Interaction) |
+| :--- | :--- | :--- |
+| **互動體驗 (UX)** | 需觀看手機螢幕進行設定與數據查看，陪伴連續性較低。 | 零螢幕沉浸體驗，對話隨即發生，極具真實寵物陪伴感。 |
+| **系統架構** | 手機 App 執行 Gemma4-E2B 模型，AMB82-mini 作為感測器與致動器控制器。 | AMB82-mini 透過 Wi-Fi 將語音即時串流至 Edge 控制端推論，直接透過喇叭回傳對話。 |
+| **應用定位** | 家長控制台、狀態監測、陪伴日誌統計。 | 兒童/長者日常語音傾訴與撫慰互動。 |
+| **本計畫策略** | **採用雙模並存機制**：平時預設為「直接對話模式」；App 則作為家長/使用者後台管理介面。 |
